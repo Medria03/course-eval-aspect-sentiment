@@ -72,11 +72,20 @@ def main():
     model.eval()
 
     clauses = split_clauses(args.text)
+    if not clauses:
+        print("未检测到可分析的文本内容。")
+        return
+
+    results = []
     for clause in clauses:
         aspect_label, sentiment_label = predict(
             clause, model, vocab, max_len, id2aspect, id2sentiment, device
         )
-        print(f"{clause} -> {aspect_label} / {sentiment_label}")
+        results.append((aspect_label, sentiment_label))
+
+    # Output format: “主题 → 情感”，每行一个结果
+    for aspect_label, sentiment_label in results:
+        print(f"{aspect_label} → {sentiment_label}")
 
 
 if __name__ == "__main__":

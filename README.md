@@ -1,14 +1,27 @@
 # 基于NLP的学生课程评价主题-情感联合分析系统
 
-本项目实现“课程评价的主题识别 + 情感判断”的联合分析流程，支持从原始评论到训练、评估与推理的完整链路。
+面向本科毕业设计的完整实现方案，覆盖数据构建、预处理、模型训练、评估与推理演示。
 
-## 功能概览
+## 研究背景与目标
 
-- 主题(Aspect)分类：如“教学质量 / 作业负担 / 课程内容 / 考试难度”
-- 情感(Sentiment)分类：差评/中评/好评
-- 模型结构：Embedding + BiLSTM + Attention + 双头输出(主题/情感)
+学生课程评价包含“评价对象(主题)”与“情感倾向”。本项目目标是实现一个可复现、可扩展的联合分析系统，完成以下任务：
 
-## 目录结构
+- 主题识别(Aspect)：如“教学质量 / 作业负担 / 课程内容 / 考试难度”
+- 情感判断(Sentiment)：差评 / 中评 / 好评
+
+## 系统流程
+
+```
+输入评论
+  ↓
+主题识别 (Aspect)
+  ↓
+情感判断 (Sentiment)
+  ↓
+输出: 主题 → 情感
+```
+
+## 项目结构
 
 ```
 course_eval_nlp/
@@ -42,9 +55,17 @@ course_eval_nlp/
 pip install -r requirements.txt
 ```
 
-## 数据集格式
+## 数据集构建与标注规范
 
-`data/labeled_reviews.csv` 需要包含以下三列：
+推荐至少 1000 条标注评论，保证主题与情感分布尽量均衡。
+
+标注原则：
+
+- 每行只包含一个主题
+- 一条评论包含多个主题时，拆成多行
+- 情感标签只在该主题范围内判定
+
+格式：`data/labeled_reviews.csv`
 
 | 字段 | 含义 |
 | --- | --- |
@@ -79,58 +100,45 @@ text,aspect,sentiment
 
 编码在 `train/train_model.py` 中配置，如需扩展请同步修改。
 
-## 文本预处理
+## 预处理流程
 
-流程：
+- 清洗：仅保留中文字符
+- 分词：jieba 分词
+- 去停用词：可选(可在 `tokenize.py` 中加入)
 
-原始文本 → 清洗 → 分词 → 去停用词(可选)
+## 模型设计
 
-当前实现：
+采用“共享编码器 + 双任务输出”的联合建模方案：
 
-- `clean_text.py` 仅保留中文字符
-- `tokenize.py` 使用 jieba 分词
+- Embedding 将词映射为向量
+- BiLSTM 获取上下文表示
+- Attention 聚合关键特征
+- 双头输出：Aspect 分类、Sentiment 分类
 
-如需停用词，可在 `tokenize.py` 中加入停用词过滤逻辑。
+模型定义在 `models/bilstm_attention.py`。
 
-## 训练模型
+## 训练与评估
 
-运行：
+训练：
 
 ```bash
 python train/train_model.py --epochs 5
 ```
 
-常用参数：
-
-- `--data` 标注数据路径
-- `--embedding-dim` 词向量维度
-- `--hidden-dim` LSTM隐层维度
-- `--max-len` 最大序列长度
-- `--batch-size` 批大小
-- `--epochs` 训练轮数
-- `--lr` 学习率
-- `--output-model` 模型保存路径
-- `--output-meta` 元数据保存路径
-
-输出：
-
-- `models/model.pt`
-- `models/metadata.json`
-
-## 评估模型
-
-运行：
+评估：
 
 ```bash
 python evaluate/evaluate_model.py
 ```
 
-输出：
+输出指标：
 
-- 主题分类指标 (precision/recall/f1)
-- 情感分类指标 (precision/recall/f1)
+- Accuracy
+- Precision
+- Recall
+- F1-score
 
-## 推理(系统演示)
+## 推理示例
 
 运行：
 
@@ -138,28 +146,29 @@ python evaluate/evaluate_model.py
 python main.py --text "老师讲课很好，但是作业太多"
 ```
 
-示例输出：
+输出：
 
 ```
-老师讲课很好 -> 教学质量 / 好评
-但是作业太多 -> 作业负担 / 差评
+教学质量 → 好评
+作业负担 → 差评
 ```
 
 说明：
 
-- 推理时会对输入文本做简单分句(逗号/句号/感叹号等)
-- 每个子句进行主题+情感预测
+- 推理时对输入文本进行分句，再逐句预测
+- 输出格式为“主题 → 情感”，不显示原子句
 
-## 建议扩展方向
+## 复现实验步骤
 
-- 增加“方面抽取”模块，替换简单分句
-- 使用更强的预训练模型(BERT/ERNIE)
-- 扩展主题类别与情感等级
-- 加入可视化界面或Web接口
+1. 准备 `data/labeled_reviews.csv`
+2. 安装依赖 `pip install -r requirements.txt`
+3. 训练模型 `python train/train_model.py`
+4. 评估模型 `python evaluate/evaluate_model.py`
+5. 推理测试 `python main.py --text "..."`
 
-## 快速检查清单
+## 可扩展方向
 
-- 已准备标注数据(>=1000条为佳)
-- 运行训练脚本完成模型训练
-- 运行评估脚本查看指标
-- 运行推理脚本验证效果
+- 引入 BERT/ERNIE 等预训练模型
+- 增加方面抽取模块(替代简单分句)
+- 设计 Web/UI 演示界面
+- 增加多标签或细粒度情感等级
