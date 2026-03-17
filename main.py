@@ -14,6 +14,7 @@ from preprocess.tokenize import tokenize
 
 
 def encode(tokens, vocab, max_len: int):
+    # 分词 -> id，并做截断/补齐
     ids = [vocab.get(tok, vocab["<unk>"]) for tok in tokens]
     if len(ids) < max_len:
         ids = ids + [vocab["<pad>"]] * (max_len - len(ids))
@@ -23,11 +24,13 @@ def encode(tokens, vocab, max_len: int):
 
 
 def split_clauses(text: str):
+    # 用标点进行简单分句，便于一句话多主题输出
     parts = re.split(r"[，,。；;！!？?]+", text)
     return [p.strip() for p in parts if p.strip()]
 
 
 def predict(text, model, vocab, max_len, id2aspect, id2sentiment, device):
+    # 单条文本的主题 + 情感预测
     tokens = tokenize(text)
     input_ids = encode(tokens, vocab, max_len)
     input_tensor = torch.tensor([input_ids], dtype=torch.long).to(device)
@@ -49,6 +52,7 @@ def main():
         print("Please provide --text for inference.")
         return
 
+    # 读取训练阶段保存的词表与超参
     meta = json.loads(Path(args.meta).read_text(encoding="utf-8"))
     vocab = meta["vocab"]
     aspect2id = meta["aspect2id"]
@@ -61,6 +65,7 @@ def main():
     id2sentiment = {v: k for k, v in sentiment2id.items()}
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # 按元数据重建模型结构
     model = MultiTaskAspectSentiment(
         vocab_size=len(vocab),
         embedding_dim=embedding_dim,

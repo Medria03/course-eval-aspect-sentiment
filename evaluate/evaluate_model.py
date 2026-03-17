@@ -16,6 +16,7 @@ from preprocess.tokenize import tokenize
 
 
 def encode(tokens, vocab, max_len: int):
+    # 将分词映射为 id，并做定长处理
     ids = [vocab.get(tok, vocab["<unk>"]) for tok in tokens]
     if len(ids) < max_len:
         ids = ids + [vocab["<pad>"]] * (max_len - len(ids))
@@ -58,6 +59,7 @@ def main():
     parser.add_argument("--batch-size", type=int, default=16)
     args = parser.parse_args()
 
+    # 读取训练阶段保存的元数据
     meta = json.loads(Path(args.meta).read_text(encoding="utf-8"))
     vocab = meta["vocab"]
     aspect2id = meta["aspect2id"]
@@ -98,6 +100,7 @@ def main():
     sentiment_id2label = {v: k for k, v in sentiment2id.items()}
 
     print("Aspect classification report:")
+    # classification_report 会输出每个类别的 precision/recall/f1/support
     print(
         classification_report(
             all_aspect_true,

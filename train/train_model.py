@@ -30,10 +30,12 @@ SENTIMENT2ID = {
 
 
 def build_vocab(texts, min_freq: int = 1):
+    # 统计词频并构建词表
     freq = {}
     for text in texts:
         for token in tokenize(text):
             freq[token] = freq.get(token, 0) + 1
+    # 约定 <pad>=0, <unk>=1
     vocab = {"<pad>": 0, "<unk>": 1}
     for token, count in sorted(freq.items()):
         if count >= min_freq:
@@ -42,6 +44,7 @@ def build_vocab(texts, min_freq: int = 1):
 
 
 def encode(tokens, vocab, max_len: int):
+    # 将分词结果映射为 id，并做截断/补齐
     ids = [vocab.get(tok, vocab["<unk>"]) for tok in tokens]
     if len(ids) < max_len:
         ids = ids + [vocab["<pad>"]] * (max_len - len(ids))
@@ -89,6 +92,7 @@ def train_epoch(model, loader, optimizer, criterion, device):
         aspect_id = aspect_id.to(device)
         sentiment_id = sentiment_id.to(device)
 
+        # 前向 + 反向 + 参数更新
         optimizer.zero_grad()
         aspect_logits, sentiment_logits = model(input_ids)
         loss_aspect = criterion(aspect_logits, aspect_id)
@@ -148,12 +152,14 @@ def main():
 
     dataset = ReviewDataset(Path(args.data), vocab, ASPECT2ID, SENTIMENT2ID, args.max_len)
     indices = list(range(len(dataset)))
+    # 简单随机划分训练/验证
     train_idx, val_idx = train_test_split(indices, test_size=0.2, random_state=42)
 
     train_loader = DataLoader(Subset(dataset, train_idx), batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(Subset(dataset, val_idx), batch_size=args.batch_size, shuffle=False)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # 多任务模型：共享编码器 + 双分类头
     model = MultiTaskAspectSentiment(
         vocab_size=len(vocab),
         embedding_dim=args.embedding_dim,
@@ -179,6 +185,7 @@ def main():
     model_path.parent.mkdir(parents=True, exist_ok=True)
 
     torch.save(model.state_dict(), model_path)
+    # 保存词表与超参，供推理阶段复用
     meta = {
         "vocab": vocab,
         "aspect2id": ASPECT2ID,
